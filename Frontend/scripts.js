@@ -1,6 +1,8 @@
 async function analyze() {
     let text = document.getElementById("inputText").value;
-    console.log("Analyzing text:", text);
+    let langSelect = document.getElementById("langSelect");
+    let language = langSelect ? langSelect.value : "English";
+    console.log("Analyzing text:", text, "in language:", language);
 
     let btn = document.querySelector("button");
     let originalText = btn.innerText;
@@ -13,7 +15,7 @@ async function analyze() {
             headers: {
                 "Content-Type": "application/json"
             },
-            body: JSON.stringify({ text: text })
+            body: JSON.stringify({ text: text, language: language })
         });
 
         console.log("Response status:", response.status);

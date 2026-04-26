@@ -3,7 +3,7 @@ from pydantic import BaseModel
 from detector import rule_based_score
 from openai import OpenAI
 from fastapi.middleware.cors import CORSMiddleware
-import os
+import os 
 from dotenv import load_dotenv
 
 
@@ -26,6 +26,7 @@ client = OpenAI(
 
 class Message(BaseModel):
     text: str
+    language: str = "English"
 
 @app.post("/analyze")
 async def analyze(data: Message):
@@ -42,30 +43,33 @@ async def analyze(data: Message):
     try:
         print("[DEBUG] Executing OpenAI/OpenRouter API call...")
         import json, re
-        prompt = f"""You are a cybersecurity AI agent inside a production system.
+        prompt = f"""You are an advanced Cybersecurity Detection Agent.
 
-Your job is to return STRICT structured JSON for UI rendering.
+The system has already evaluated this message's risk as: {risk}
 
-You MUST follow separation of roles:
-- "summary" = Short conclusion explaining if it is a scam or not (max 20 words).
-- "explanation" = Detailed analysis explaining WHY the message is risky or safe (max 40 words).
+OUTPUT LANGUAGE: {data.language}
 
-Return ONLY JSON:
+----------------------------------
+Return STRICT JSON:
+
 {{
-  "risk": "Safe | Suspicious | Dangerous",
-  "summary": "Short conclusion explaining if it is a scam or not (max 20 words).",
-  "explanation": "Detailed analysis explaining WHY the message is risky or safe (max 40 words).",
-  "keywords": ["list of important scam indicators"]
+  "risk": "{risk}",
+  "summary": "Short conclusion (max 20 words)",
+  "explanation": "Detailed analysis explaining WHY it is {risk} (max 40 words)",
+  "intent": "Intent behind the message.",
+  "risk_factors": ["list of important scam indicators"],
+  "confidence": 0.95
 }}
 
-CRITICAL RULES:
-- Summary MUST be a FINAL verdict (max 20 words).
-- Explanation MUST explain WHY (max 40 words).
-- You MUST provide a separate summary and explanation for every message evaluated.
-- Do NOT include formatting like **, bullets, markdown
-- Do NOT include extra text outside JSON
-- Do NOT explain the rules
-- Be deterministic and consistent
+----------------------------------
+Rules:
+- Summary MUST be a short final verdict.
+- Explanation MUST be detailed and explain WHY.
+- Both MUST be in {data.language}.
+- Do NOT mix languages.
+- Keep technical terms in English if needed.
+- Do NOT include formatting like **, bullets, markdown.
+- Do NOT include extra text outside JSON.
 
 Analyze this message:
 {text}"""
@@ -91,7 +95,7 @@ Analyze this message:
         risk = parsed_ai.get("risk", risk)
         summary_text = parsed_ai.get("summary", explanation)
         explanation_text = parsed_ai.get("explanation", "No detailed analysis provided.")
-        keywords = parsed_ai.get("keywords", keywords)
+        keywords = parsed_ai.get("risk_factors", parsed_ai.get("keywords", keywords))
         should_block = (risk == "Dangerous")
         
         ai_used = True
@@ -115,3 +119,14 @@ Analyze this message:
         "ai_used": ai_used
     }
 
+# Instead of hardcoding:
+
+# import os
+
+# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Then in terminal:
+
+# set OPENAI_API_KEY=sk-xxxxxxxxxxxx   # Windows
+
+# 👉 This avoids leaking your key.
